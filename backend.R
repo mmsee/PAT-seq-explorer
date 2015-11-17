@@ -1,4 +1,5 @@
 # Returns a list of bam files from the nominated directory
+setwd("/data/home/apattison/ShinyApps/andrew/")
 find_bam_files <- function(file_path) {
   if(file.exists(paste0(file_path,'/','plotter-config.json'))){
     json <- fromJSON(paste0(file_path,'/', "plotter-config.json"))
@@ -21,192 +22,13 @@ find_gff_files <- function(file_path) {
   }
   return(gff_files)
 }
-# So this function got out of hand... but I basically makes whatever plot
-# is specified by the user. 
-make_plot <- function(processed_frame, ranges,names, leg,group, alt_plot, order_alt, alt_cumu_dis, poly_a_pileup,show_poly_a =F){
-  if (length(processed_frame) == 0){
-    return("Error, no reads for this gene or eak in this sample")
-  }
-  
-  if(order_alt==T){
-
-    new_frame <- processed_frame[
-      with(processed_frame,order(
-        -width, -number_of_as)
-      ),
-      ]
-    ylab <- "Sorted Read Number"
-  }
-  else{
-    new_frame <- processed_frame
-    ylab <- "Read Number"
-  }
-  if (group == T){
-    samples <- split(new_frame, new_frame$group, drop =T)
-  }
-  else {
-    samples <- split(new_frame, new_frame$sample, drop =T)    
-  }  
- 
-  par(bty="l", ps = 10, mar=c(5.1,4.1,4.1,8.1), xpd =T)
-  if(alt_plot == T){
-    
-    if (poly_a_pileup == T ){
-      if (length(samples) == 1){
-        par(mfrow= c(1,1))
-      }
-      else if ((length(samples)/2)%%1 == 0){
-        par(mfrow= c(as.integer(length(samples)/2),2))
-      }
-      else{
-        par(mfrow= c(as.integer(length(samples)/2)+1,2))        
-      }
-      for (sample in samples) {
-        points <- data.frame(sample$width, sample$number_of_as)
-        ymax <- nrow(points)  
-        
-        count <- 1:ymax
-        
-        plot(NA,xlim=ranges, ylim = c(0, ymax), xlab= "Number of Bases", ylab = ylab, 
-             main= paste(sample[1,'sample']))
-        for (i in 1:ymax){
-          segments(x0= 0, y0= i,x1= points[i,1], col="purple")
-          segments(x0= points[i,1], y0= i,x1= points[i,1] +points[i,2] , col="pink")
-          
-        }
-        
-      }
-      return()
-    }
-    ymax <- 0
-    for (sample in samples){
-      title <- sample[1, 'gene_or_peak_name']
-      if (nrow (sample) > ymax){
-        ymax <- nrow(sample)
-      }
-      
-    }
-    
-    if (alt_cumu_dis ==T) {
-      dummy_ecdf <- ecdf(1:10)
-      curve((-1*dummy_ecdf(x)*100)+100, from=ranges[1], to=ranges[2], 
-            col="white", xlim=ranges, main= paste(names),
-            axes=F, xlab= "Number of Bases", ylab = 'Percent Population (%)', ylim =c(0,100))
-      axis(1, pos=0, tick = 25)
-      axis(2, pos= 0, at= c(0,25,50,75,100), tick = 25) 
-      count <- 1  
-      for (df in samples){
-        split_peak <- split(df,df$gene_or_peak_name, drop =T)    
-        for(gene_or_peak in split_peak){  
-          colours <- rainbow(length(samples)*length(split_peak))
-          
-          ecdf_a <- ecdf(gene_or_peak[,"width"])
-          curve((-1*ecdf_a(x)*100)+100, from=ranges[1], to=ranges[2], 
-                col=colours[count], xlim=ranges, main= paste(names),
-                add=T)
-          count <- count +1     
-          
-        }
-        # This loop makes a list for the legend. 
-        leg_names <- list()
-        for (name in names(samples)){
-          leg_names <- c(leg_names, paste(name, names(split_peak)))
-          
-        }
-        if (leg ==T){ 
-          x_offset <-  length(strsplit(paste(leg_names), "")[[1]])
-          legend(ranges[2]-30-(x_offset)*2,110 +(length(samples)*-0.8), 
-                 legend = leg_names, fill = colours, bty ="n")
-        }
-        
-      }
-      
-    }
-    else{
-      plot(NA,xlim=ranges, ylim = c(0, ymax), xlab= "Number of Bases", ylab = ylab, 
-           main= title)
-      
-      
-      col_count <- 1
-      for (df in samples){
-        split_peak <- split(df,df$gene_or_peak_name, drop =T)    
-        colours <- rainbow(length(samples)*length(split_peak))
-        for (sample in split_peak) {
-          
-          points <- data.frame(sample$width, sample$number_of_as) 
-          count <- 1:nrow(points)
-          
-          lines(points[,1],count,col = colours[col_count])
-          
-          if (show_poly_a ==T){
-            lines(points[,1]+ points[,2], count, col = colours[col_count])  
-          }
-          col_count <- col_count +1
-        }
-        
-        leg_names <- list()
-        for (name in names(samples)){
-          leg_names <- c(leg_names, paste(name, names(split_peak)))
-          
-        }
-        if (leg ==T){ 
-          legend(y = ymax+38,x = ranges[2]-55, 
-                 legend = leg_names, fill = colours, bty ="n")
-        }
-        
-      }
-      
-    }
-    #single_bases <- strsplit(seq_to_plot, "")
-    #axis(1, pos=-7,at = 1:nchar(seq_to_plot), labels = single_bases[[1]], lwd =0, cex.axis = 0.3) 
-    
-  }
-  
-  else{    
-    
-    dummy_ecdf <- ecdf(1:10)
-    curve((-1*dummy_ecdf(x)*100)+100, from=ranges[1], to=ranges[2], 
-          col="white", xlim=ranges, main= paste(names),
-          axes=F, xlab= 'Poly (A)-Tail Length', ylab = 'Percent Population (%)', ylim =c(0,100))
-    axis(1, pos=0, tick = 25)
-    axis(2, pos= 0, at= c(0,25,50,75,100), tick = 25)   
-    
-    count <- 1  
-    
-    for (df in samples){
-      split_peak <- split(df,df$gene_or_peak_name, drop =T)    
-      for(gene_or_peak in split_peak){  
-        colours <- rainbow(length(samples)*length(split_peak))
-        ecdf_a <- ecdf(gene_or_peak[,"number_of_as"])
-        curve((-1*ecdf_a(x)*100)+100, from=ranges[1], to=ranges[2], 
-              col=colours[count], xlim=ranges, main= paste(names),
-              add=T)
-        count <- count +1     
-        
-      }
-      
-    }
-    # This loop makes a list for the legend. 
-    leg_names <- list()
-    for (name in names(samples)){
-      leg_names <- c(leg_names, paste(name, names(split_peak)))
-      
-    }
-    if (leg ==T){ 
-      x_offset <-  length(strsplit(paste(leg_names), "")[[1]])
-      legend(ranges[2]-30-(x_offset)*2,110 +(length(samples)*-0.8), 
-             legend = leg_names, fill = colours, bty ="n")
-    }
-  }
-  
-}
 
 selected_data<- function (data){
   return (paste(data))
 }
 # Outpus the rows matching the input gene or peak name   
 filter_gff_for_rows<- function (gff,names){
-  
+  print(names)
   split_names <- strsplit(names, split = " ")
   empty <- data.frame()
   
@@ -234,10 +56,8 @@ filter_gff_for_rows<- function (gff,names){
 get_a_counts <- function(bam_file_path,gff_rows, bam_files, groups, names_from_json){
   reads_report <- data.frame() 
   for (gff_row in 1:nrow(gff_rows)){
-    print("here?")
     counts_frame <- get_a_counts_gff_row(bam_file_path, gff_rows[gff_row,], 
                                          bam_files, groups, names_from_json)
-    print("shouldn't get here")
     if (nrow(counts_frame) == 0){
       next
     }
@@ -303,7 +123,6 @@ get_a_counts_gff_row <- function(bam_file_path,peak, bam_files, groups,names_fro
     print(str(single_bam_frame))
     if (nrow(single_bam_frame) == 0){
       next
-    #  single_bam_frame <- data.frame(0,0,0,0,0,0,0,0,0,0)
     }
     if (substring(bam_file,1,1)=="/"){
       single_bam_frame$sample <-  names_from_json$name [names_from_json$bam ==paste(bam_file)]
@@ -311,7 +130,6 @@ get_a_counts_gff_row <- function(bam_file_path,peak, bam_files, groups,names_fro
     else{
       single_bam_frame$sample <- paste(bam_file)
     }
-    print("do we get to here?")
     single_bam_frame$group<- paste("group", groups[count])
  
     bam_frame <- rbind(bam_frame,single_bam_frame)
@@ -352,7 +170,17 @@ names_string <- function(s_frame, groups, all_reads){
   return(to_print)
 }
 # Handles overlapping peaks in the gff file 
-modify_gff_inplace <- function (gff_file) {
+modify_gff_inplace <- function (gff_file, name) {
+  
+  saved_gff <-   paste0("/data/home/apattison/ShinyApps/dev/PAT-seq-explorer/gff_dump/",
+                        name, ".gff")
+  if (file.exists(saved_gff)){
+    gff <- read.delim(saved_gff, header=T,
+                      comment.char="",stringsAsFactors=F)
+    return(gff)
+  }
+
+  
   start_gff_file <- read.delim(gff_file, header=FALSE,
                                comment.char="",stringsAsFactors=F)
   
@@ -402,6 +230,9 @@ modify_gff_inplace <- function (gff_file) {
     }
   }
   new_frame <- rbind(plus_reads, minus_reads)
+  #will new to become getwd
+  write.table(x= new_frame, file =saved_gff , append = F,
+              quote = F, sep = "\t", row.names = F, col.names = T)
   return(new_frame)
 }
 # Makes the menas and medians frame shown in info tab of the app
@@ -434,5 +265,247 @@ make_means_and_meds_frame <- function (poly_a_counts){
 }
 
 
+poly_a_plot <- function (processed_frame, ranges,names, leg = F,group = F){
+  print(head(processed_frame))
+  new_frame <- processed_frame
+  
+  if (group == T){
+    samples <- split(new_frame, new_frame$group, drop =T)
+  }
+  else {
+    samples <- split(new_frame, new_frame$sample, drop =T)    
+  }  
+  dummy_ecdf <- ecdf(1:10)
+  curve((-1*dummy_ecdf(x)*100)+100, from=ranges[1], to=ranges[2], 
+        col="white", xlim=ranges, main= paste(names),
+        axes=F, xlab= 'Poly (A)-Tail Length', ylab = 'Percent Population (%)', ylim =c(0,100))
+  axis(1, pos=0, tick = 25)
+  axis(2, pos= 0, at= c(0,25,50,75,100), tick = 25)   
+  
+  count <- 1  
+  
+  for (df in samples){
+    split_peak <- split(df,df$gene_or_peak_name, drop =T)    
+    for(gene_or_peak in split_peak){  
+      colours <- rainbow(length(samples)*length(split_peak))
+      ecdf_a <- ecdf(gene_or_peak[,"number_of_as"])
+      curve((-1*ecdf_a(x)*100)+100, from=ranges[1], to=ranges[2], 
+            col=colours[count], xlim=ranges, main= paste(names),
+            add=T)
+      count <- count +1     
+      
+    }
+    
+  }
+  # This loop makes a list for the legend. 
+  leg_names <- list()
+  for (name in names(samples)){
+    leg_names <- c(leg_names, paste(name, names(split_peak)))
+    
+  }
+  if (leg ==T){ 
+    x_offset <-  length(strsplit(paste(leg_names), "")[[1]])
+    legend(ranges[2]-30-(x_offset)*2,110 +(length(samples)*-0.8), 
+           legend = leg_names, fill = colours, bty ="n")
+  }
+}
 
 
+get_genomic_seq <- function(chr, start, end){  
+  seq <- getSeq(Hsapiens,chr,start,end)
+  c_seq <-  as.character(seq)
+  return(c_seq)
+}
+
+igv_plot <- function (processed_frame, ranges,names, leg,group = F, 
+                                     order_alt = T, alt_cumu_dis,show_poly_a =F, poly_a_pileup=T, gffin){
+
+  start <- gffin[1, "Peak_Start"]
+  end <- gffin[1,"Peak_End"]+400
+
+  chr <- gffin[1, "Chromosome"]
+  in_chr <- as.numeric(as.roman (substring(chr, 4)))
+  str_chr <- paste0("chr",in_chr)
+  sequence <- get_genomic_seq(str_chr, start, end)
+  sequence <- strsplit(sequence , "")
+  new_frame <- processed_frame
+  
+
+  if (gffin[1, "Orientation"] =="-"){
+    new_frame <- new_frame[
+      with(new_frame,order(
+        group, sample, -pos+width, -number_of_as)
+      ),
+      ]   
+  }
+  else{
+    new_frame <- new_frame[
+      with(new_frame,order(
+        group, sample, pos+width, -number_of_as)
+      ),
+      ]
+  }
+  if (group == T){
+    samples <- split(new_frame, new_frame$group, drop =T)
+  }
+  else {
+    samples <- split(new_frame, new_frame$sample, drop =T)    
+  }  
+  count <- list()
+  for (sample in samples){
+    count <- c(count, 1:nrow(sample))
+  }
+  count <- as.numeric(unlist(count))
+  new_frame$count <- as.numeric(unlist(count))
+  
+  if (gffin[1, "Orientation"] =="-"){
+    new_frame$bam_read_ends <- new_frame$pos-new_frame$width
+    new_frame$poly_a_extension <- new_frame$bam_read_ends -new_frame$number_of_as
+  }
+  else{
+    new_frame$bam_read_ends <- rowSums(new_frame[, c("pos", "width")])
+    new_frame$poly_a_extension <- new_frame$bam_read_ends + new_frame$number_of_as
+    
+  }
+#   
+
+#   
+  ylab <- "Read number"
+  rt <- ggplot(data = new_frame, aes(x= pos, y = count, colour ="green"))+
+    geom_point()+geom_point(aes(x= bam_read_ends, y = count))+
+   # scale_x_discrete(labels= sequence[[1]])+
+    facet_wrap(~sample)+
+    geom_segment(aes(x= pos,xend=bam_read_ends,  y= count ,
+                     yend= count))+
+    geom_segment(aes(x= bam_read_ends+1,xend=poly_a_extension,  y= count ,
+                     yend= count, colour = "blue"))+
+    xlab(paste(names,"\n", chr,"\n", start,"to", end))+
+    theme(panel.background = element_blank())+
+    ylab("Number of reads")
+    return(rt)
+
+}
+  
+  
+
+pileup_plot <- function (processed_frame, ranges,names, leg,group = F, 
+                         order_alt = T, alt_cumu_dis,show_poly_a =F, poly_a_pileup=T ){
+  
+  if(order_alt==T){
+    
+    new_frame <- processed_frame[
+      with(processed_frame,order(
+        -width, -number_of_as)
+      ),
+      ]
+    ylab <- "Sorted Read Number"
+  }
+  else{
+    new_frame <- processed_frame
+    ylab <- "Read Number"
+  }
+  if (group == T){
+    samples <- split(new_frame, new_frame$group, drop =T)
+  }
+  else {
+    samples <- split(new_frame, new_frame$sample, drop =T)    
+  }  
+  par(bty="l", ps = 10, mar=c(5.1,4.1,4.1,8.1), xpd =T)
+  
+  if (poly_a_pileup == T ){
+    if (length(samples) == 1){
+      par(mfrow= c(1,1))
+    }
+    else if ((length(samples)/2)%%1 == 0){
+      par(mfrow= c(as.integer(length(samples)/2),2))
+    }
+    else{
+      par(mfrow= c(as.integer(length(samples)/2)+1,2))        
+    }
+    for (sample in samples) {
+      points <- data.frame(sample$width, sample$number_of_as)
+      ymax <- nrow(points)  
+      
+      count <- 1:ymax
+      
+      plot(NA,xlim=ranges, ylim = c(0, ymax), xlab= "Number of Bases", ylab = ylab, 
+           main= paste(sample[1,'sample']))
+      for (i in 1:ymax){
+        segments(x0= 0, y0= i,x1= points[i,1], col="purple")
+        segments(x0= points[i,1], y0= i,x1= points[i,1] +points[i,2] , col="pink")
+        
+      }
+      
+    }
+    return()
+  }
+  ymax <- 0
+  for (sample in samples){
+    title <- sample[1, 'gene_or_peak_name']
+    if (nrow (sample) > ymax){
+      ymax <- nrow(sample)
+    }
+    
+  }
+  
+  if (alt_cumu_dis ==T) {
+    dummy_ecdf <- ecdf(1:10)
+    curve((-1*dummy_ecdf(x)*100)+100, from=ranges[1], to=ranges[2], 
+          col="white", xlim=ranges, main= paste(names),
+          axes=F, xlab= "Number of Bases", ylab = 'Percent Population (%)', ylim =c(0,100))
+    axis(1, pos=0, tick = 25)
+    axis(2, pos= 0, at= c(0,25,50,75,100), tick = 25) 
+    count <- 1  
+    for (df in samples){
+      split_peak <- split(df,df$gene_or_peak_name, drop =T)    
+      for(gene_or_peak in split_peak){  
+        colours <- rainbow(length(samples)*length(split_peak))
+        
+        ecdf_a <- ecdf(gene_or_peak[,"width"])
+        curve((-1*ecdf_a(x)*100)+100, from=ranges[1], to=ranges[2], 
+              col=colours[count], xlim=ranges, main= paste(names),
+              add=T)
+        count <- count +1     
+        
+      }
+      # This loop makes a list for the legend. 
+      leg_names <- list()
+      for (name in names(samples)){
+        leg_names <- c(leg_names, paste(name, names(split_peak)))
+        
+      }
+      if (leg ==T){ 
+        x_offset <-  length(strsplit(paste(leg_names), "")[[1]])
+        legend(ranges[2]-30-(x_offset)*2,110 +(length(samples)*-0.8), 
+               legend = leg_names, fill = colours, bty ="n")
+      }
+      
+    }
+  }
+}
+
+gene_expression_plot <- function(processed_bame_frame){
+  if (processed_bame_frame[1,"group"] == "group NULL"){
+    samples <- split(processed_bame_frame,processed_bame_frame$sample, drop =T)
+    xlab <- "Sample"
+  }
+  else{
+    samples <- split(processed_bame_frame,processed_bame_frame$group, drop =T)
+    xlab <- "Group"
+  }
+  df <- data.frame("Sample"= character(), "Count"= numeric())
+  for (i in 1:length(samples)){
+
+    row <- data.frame(names(samples[i]),nrow(samples[i][[1]]))
+    df <- rbind(df,row)
+    
+  }
+  colnames(df) <- c("Sample", "Count")
+  gplot <- ggplot(data= df, aes(x=factor(Sample), y = Count))+
+    geom_bar(stat =  "identity",colour = "green",, fill ="blue", width =0.5 )+
+    xlab(xlab)+
+    ylab("Raw number of reads")
+  return(gplot)
+  
+  
+}

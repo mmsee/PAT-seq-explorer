@@ -1,58 +1,105 @@
-# a change
-source("major_calculations.R")
 library("Rsamtools")
 library("jsonlite")
+source("backend.R")
+library("reshape2")
+library("ggplot2")
+library("genomeIntervals")
+library('BSgenome.Hsapiens.UCSC.hg19')
+setwd("/data/home/apattison/ShinyApps/andrew/")
 
 shinyServer(function(input, output, session) {
-  
   output$select_file_path <- renderUI({
     selectInput("file_path", label = h4("Select which dataset you would like to use"), 
                 choices = list.dirs(full.names=F, recursive =F), 
                 selected =  list.dirs(full.names=F, recursive =F)[1])   
   })
   
+  
   found_gff_files <- reactive({
     find_gff_files(paste0(input$file_path))
     
   })
-
-  output$gff_files <- renderUI({
-    selectInput("gff_select", label = h4("The genomic features to be used
-                                         to group reads"),     
-                choices = found_gff_files(), 
-                selected =  found_gff_files()[1])   
+  
+  # Being lazy and using a gff parser to to get possible inputs here
+  possible_inputs <- reactive({
+    if(length(found_gff_files())==0){
+      return(NULL)
+    }
+    withProgress(message = 'Grabbing read names from the gff file',
+                 detail = 'This only happens once.', value = 0,{  
+                   
+                   if (file.exists(paste0("/data/home/apattison/ShinyApps/dev/PAT-seq-explorer/gff_name_dump/",input$file_path, ".txt"))){
+                     namess <- read.csv(paste0("/data/home/apattison/ShinyApps/dev/PAT-seq-explorer/gff_name_dump/",input$file_path, ".txt"),  stringsAsFactors=FALSE)
+                     return(as.character(namess[,1]))
+                   }
+                   
+                   if (substring(found_gff_files()[1],1,1)=="/"){
+                     parsed_gff <- readGff3(paste(found_gff_files()[1]), comment.char ="")
+                     
+                   }
+                   else{
+                     parsed_gff <- readGff3(paste("./", input$file_path,"/", found_gff_files()[1],sep=""))
+                     
+                   }
+                   names_list <- as.character(getGffAttribute(parsed_gff, "Name"))
+                   if (sum (is.na(names_list)) == length(names_list)){
+                     names_list <- as.character(getGffAttribute(parsed_gff, "id"))
+                   }     
+                   if (sum (is.na(names_list)) == length(names_list)){
+                     names_list <- as.character(getGffAttribute(parsed_gff, "ID"))                     
+                   }
+                   write.csv(names_list, quote=F, row.names=F, paste0("/data/home/apattison/ShinyApps/dev/PAT-seq-explorer/gff_name_dump/",input$file_path, ".txt"))
+                   return(names_list)
+                 }
+    )
+    
   })
+  
+  output$gene_list <- renderUI({
+    if(length(possible_inputs())==0){
+      return(NULL)
+    }
+    
+    selectizeInput("select_genes", label = h5("Select Your 
+                                         Favourite Gene(s) or a Peak(s) 
+                                        Separated by a Space"),
+                   choices = possible_inputs(), selected = possible_inputs()[16] , multiple = T,
+                   options = list(maxOptions = 50))
+    
+  })
+  
   found_bam_files <- reactive({
     find_bam_files(paste0(input$file_path, "/"))
   })
   output$bam_files <- renderUI({
     
     if (class(found_bam_files())=='data.frame'){
-      checkboxGroupInput("select_bam_files", label = h4("Select the 
-                                                        bam files you would like to plot"),
-                         choices = found_bam_files()[[1]], 
-                         selected = found_bam_files()[[1]][1]) 
+      selectizeInput(inputId = "select_bam_files", label = h4("Select the relevant 
+                                                        Bam Files"),
+                     choices = found_bam_files()[[1]], 
+                     selected = found_bam_files()[[1]][1], multiple =T) 
       #Goes into the data frame and gets the file paths corresponding 
       #to the selected BAM files      
     }
     else{
-      checkboxGroupInput("select_bam_files", label = h4("Select the Relevant 
-                                                        Bam FIles"),
-                         choices = found_bam_files(), 
-                         selected = found_bam_files()[1])  
+      selectizeInput("select_bam_files", label = h4("Select the relevant 
+                                                        Bam Files"),
+                     choices = found_bam_files(), 
+                     selected = found_bam_files()[1], multiple =T)  
     }
     
   })
   processed_gff <- reactive({
-    if(is.null(input$gff_select))
-      return()
+    #     if(length(found_gff_files()) == 0){
+    #       return (NULL)
+    #     }
     withProgress(message = 'Processing the gff file, this may take a few seconds.',
                  detail = 'This only happens once.', value = 0,{   
-                   if (substring(input$gff_select,1,1)=="/"){
-                     modify_gff_inplace(paste(input$gff_select))
+                   if (substring(found_gff_files()[1],1,1)=="/"){
+                     modify_gff_inplace(paste(found_gff_files()[1]), input$file_path)
                    }
                    else{
-                     modify_gff_inplace(paste("./", input$file_path,"/", input$gff_select,sep=""))
+                     modify_gff_inplace(paste("./", input$file_path,"/", found_gff_files()[1],sep=""), input$file_path)
                    }
                    
                  }
@@ -63,6 +110,9 @@ shinyServer(function(input, output, session) {
   })
   
   gffInput <- reactive({
+    #     if (length(processed_gff())== 0){
+    #       return(NULL)
+    #     }
     filter_gff_for_rows(processed_gff(), input$select_genes)
   })
   output$gff_rows<- renderDataTable({
@@ -91,7 +141,6 @@ shinyServer(function(input, output, session) {
   
   
   poly_a_counts<- reactive({
-
     if (class(found_bam_files())=='data.frame'){
       bam_files <- found_bam_files()$bam [found_bam_files()$name %in% input$select_bam_files]
     }
@@ -104,7 +153,7 @@ shinyServer(function(input, output, session) {
                    initial_table <- get_a_counts (input$file_path, gffInput(),bam_files,
                                                   group_list(),found_bam_files())
                    initial_table[is.na(initial_table)]<-0
-                  
+                   
                    if (input$all_reads ==F){  
                      initial_table <- initial_table[initial_table$number_of_as > 0,]
                    }
@@ -132,17 +181,44 @@ shinyServer(function(input, output, session) {
     split_frame <- split(full_df, full_df$sample)
     names_string (split_frame, input$merge, input$all_reads) 
   })
+  gene_expression_plot_calcs <-
+    reactive({
+      gene_expression_plot(poly_a_counts())
+    })
+  output$gene_expression_plot <-renderPlot({
+    gene_expression_plot_calcs()
+  }) 
   plot_calcs <- reactive({
-    make_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend, 
-              input$merge, input$alt_plot, input$order_alt, input$alt_cumu_dis, input$poly_a_pileup)
-  })    
+    poly_a_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend, 
+                input$merge) 
+  })
+  pilup_plot_calcs <- reactive({
+    pileup_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend,
+                group = F, input$order_alt, alt_cumu_dis = F,show_poly_a =F, input$poly_a_pileup )
+  })
+  coverage_plot_calcs <- reactive({
+    
+    igv_plot (poly_a_counts(), input$xslider,input$select_genes,input$legend,group = F, 
+              input$order_alt, alt_cumu_dis =F,show_poly_a =F, poly_a_pileup=T,gffInput ())
+  })
+  
+  output$igv_plot<- renderPlot({  
+    coverage_plot_calcs()
+  })
+  
+  
+  output$pilup_plot<- renderPlot({  
+    pilup_plot_calcs()
+  })
+  
+  
   output$scp_plot<- renderPlot({  
     plot_calcs()
   })
   #Workaround for a shiny bug thatdoesn't handle reactive plots well. 
   plot_calcs2 <- function(){
-    make_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend, 
-              input$merge, input$alt_plot, input$order_alt, input$alt_cumu_dis, input$poly_a_pileup)
+    poly_a_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend, 
+                input$merge)    
   }
   selected_plot_points <- reactive({
     input$plot_brush
@@ -172,7 +248,7 @@ shinyServer(function(input, output, session) {
       return("Reads That Fall Within The Selected Read Lengths")      
     }
   }) 
-
+  
   output$downloadPlot <- downloadHandler(
     filename = function(){
       paste(trim(input$select_genes), '.eps', sep='')
