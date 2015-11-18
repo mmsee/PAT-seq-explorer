@@ -28,7 +28,6 @@ selected_data<- function (data){
 }
 # Outpus the rows matching the input gene or peak name   
 filter_gff_for_rows<- function (gff,names){
-  print(names)
   split_names <- strsplit(names, split = " ")
   empty <- data.frame()
   
@@ -120,7 +119,6 @@ get_a_counts_gff_row <- function(bam_file_path,peak, bam_files, groups,names_fro
     single_bam_frame <- single_bam_frame[single_bam_frame$pos >= 
                                            peak[,'Peak_Start']& 
                                            single_bam_frame$pos <= peak[,'Peak_End'] ,]
-    print(str(single_bam_frame))
     if (nrow(single_bam_frame) == 0){
       next
     }
@@ -266,7 +264,6 @@ make_means_and_meds_frame <- function (poly_a_counts){
 
 
 poly_a_plot <- function (processed_frame, ranges,names, leg = F,group = F){
-  print(head(processed_frame))
   new_frame <- processed_frame
   
   if (group == T){
@@ -278,7 +275,7 @@ poly_a_plot <- function (processed_frame, ranges,names, leg = F,group = F){
   dummy_ecdf <- ecdf(1:10)
   curve((-1*dummy_ecdf(x)*100)+100, from=ranges[1], to=ranges[2], 
         col="white", xlim=ranges, main= paste(names),
-        axes=F, xlab= 'Poly (A)-Tail Length', ylab = 'Percent Population (%)', ylim =c(0,100))
+        axes=F, xlab= 'Poly (A) tail length', ylab = 'Percent population (%)', ylim =c(0,100))
   axis(1, pos=0, tick = 25)
   axis(2, pos= 0, at= c(0,25,50,75,100), tick = 25)   
   
@@ -305,7 +302,7 @@ poly_a_plot <- function (processed_frame, ranges,names, leg = F,group = F){
   }
   if (leg ==T){ 
     x_offset <-  length(strsplit(paste(leg_names), "")[[1]])
-    legend(ranges[2]-30-(x_offset)*2,110 +(length(samples)*-0.8), 
+    legend("topright", 
            legend = leg_names, fill = colours, bty ="n")
   }
 }
@@ -324,10 +321,10 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
   end <- gffin[1,"Peak_End"]+400
 
   chr <- gffin[1, "Chromosome"]
-  in_chr <- as.numeric(as.roman (substring(chr, 4)))
-  str_chr <- paste0("chr",in_chr)
-  sequence <- get_genomic_seq(str_chr, start, end)
-  sequence <- strsplit(sequence , "")
+#   in_chr <- as.numeric(as.roman (substring(chr, 4)))
+#   str_chr <- paste0("chr",in_chr)
+#   sequence <- get_genomic_seq(str_chr, start, end)
+#   sequence <- strsplit(sequence , "")
   new_frame <- processed_frame
   
 
@@ -346,11 +343,14 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
       ]
   }
   if (group == T){
+    group_status <- "group"
     samples <- split(new_frame, new_frame$group, drop =T)
   }
   else {
+    group_status <- "sample"
     samples <- split(new_frame, new_frame$sample, drop =T)    
   }  
+
   count <- list()
   for (sample in samples){
     count <- c(count, 1:nrow(sample))
@@ -367,21 +367,26 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
     new_frame$poly_a_extension <- new_frame$bam_read_ends + new_frame$number_of_as
     
   }
-#   
-
-#   
-  ylab <- "Read number"
-  rt <- ggplot(data = new_frame, aes(x= pos, y = count, colour ="green"))+
-    geom_point()+geom_point(aes(x= bam_read_ends, y = count))+
+  rt <- ggplot(data = new_frame, aes(x= pos, y = count, colour =Guide))+
    # scale_x_discrete(labels= sequence[[1]])+
-    facet_wrap(~sample)+
+   facet_wrap(as.formula(paste("~", group_status)),ncol = 2)+
     geom_segment(aes(x= pos,xend=bam_read_ends,  y= count ,
-                     yend= count))+
-    geom_segment(aes(x= bam_read_ends+1,xend=poly_a_extension,  y= count ,
-                     yend= count, colour = "blue"))+
-    xlab(paste(names,"\n", chr,"\n", start,"to", end))+
-    theme(panel.background = element_blank())+
-    ylab("Number of reads")
+                     yend= count, colour = "Alligned reads"))+
+
+    xlab(paste(names,"\n","chr", chr,"\n", start,"to", end))+
+    theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
+          panel.background = element_blank(), axis.line = element_line(colour = "black"),
+          strip.background = element_blank())+
+    ylab("Number of reads")+
+    theme(axis.text.x = element_text(colour="black"), 
+          axis.text.y = element_text(colour="black"))+
+  scale_colour_manual(values = c("Alligned reads"="green", "Poly (A) tail"="blue" ))
+  if (show_poly_a==T){
+    rt = rt+ geom_segment(aes(x= bam_read_ends+1,xend=poly_a_extension,  y= count ,
+                              yend= count, colour = "Poly (A) tail"))    
+  }
+
+  
     return(rt)
 
 }
@@ -509,3 +514,8 @@ gene_expression_plot <- function(processed_bame_frame){
   
   
 }
+
+#help_text (filters out reads that
+#were not sequenced completely to the end of the poly (A)-tail
+# gets reads that had a 
+#  genomic aligment within the selected length

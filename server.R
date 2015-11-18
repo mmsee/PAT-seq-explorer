@@ -9,7 +9,7 @@ setwd("/data/home/apattison/ShinyApps/andrew/")
 
 shinyServer(function(input, output, session) {
   output$select_file_path <- renderUI({
-    selectInput("file_path", label = h4("Select which dataset you would like to use"), 
+    selectizeInput("file_path", label = ("Select a dataset"), 
                 choices = list.dirs(full.names=F, recursive =F), 
                 selected =  list.dirs(full.names=F, recursive =F)[1])   
   })
@@ -34,7 +34,7 @@ shinyServer(function(input, output, session) {
                    }
                    
                    if (substring(found_gff_files()[1],1,1)=="/"){
-                     parsed_gff <- readGff3(paste(found_gff_files()[1]), comment.char ="")
+                     parsed_gff <- readGff3(paste(found_gff_files()[1]))
                      
                    }
                    else{
@@ -48,6 +48,14 @@ shinyServer(function(input, output, session) {
                    if (sum (is.na(names_list)) == length(names_list)){
                      names_list <- as.character(getGffAttribute(parsed_gff, "ID"))                     
                    }
+                   if (substring(names_list[1],1,4)=="peak"){
+                     gff <- read.delim(paste(found_gff_files()[1]), header=FALSE,
+                                       comment.char="",stringsAsFactors=F)
+                     gff <- gff[-1,]
+                     new_gff<-gff
+                     rm <- regmatches(gff[,9], regexpr("Name=[^;\\s]+",gff[,9] , perl=T))
+                     names_list <- gsub(x = rm, pattern = "(Name=)", replacement = "", perl = T)
+                   }
                    write.csv(names_list, quote=F, row.names=F, paste0("/data/home/apattison/ShinyApps/dev/PAT-seq-explorer/gff_name_dump/",input$file_path, ".txt"))
                    return(names_list)
                  }
@@ -60,9 +68,7 @@ shinyServer(function(input, output, session) {
       return(NULL)
     }
     
-    selectizeInput("select_genes", label = h5("Select Your 
-                                         Favourite Gene(s) or a Peak(s) 
-                                        Separated by a Space"),
+    selectizeInput("select_genes", label = ("Select a gene"),
                    choices = possible_inputs(), selected = possible_inputs()[16] , multiple = T,
                    options = list(maxOptions = 50))
     
@@ -74,16 +80,14 @@ shinyServer(function(input, output, session) {
   output$bam_files <- renderUI({
     
     if (class(found_bam_files())=='data.frame'){
-      selectizeInput(inputId = "select_bam_files", label = h4("Select the relevant 
-                                                        Bam Files"),
+      selectizeInput(inputId = "select_bam_files", label = ("Select samples"),
                      choices = found_bam_files()[[1]], 
                      selected = found_bam_files()[[1]][1], multiple =T) 
       #Goes into the data frame and gets the file paths corresponding 
       #to the selected BAM files      
     }
     else{
-      selectizeInput("select_bam_files", label = h4("Select the relevant 
-                                                        Bam Files"),
+      selectizeInput("select_bam_files", label = ("Select samples"),
                      choices = found_bam_files(), 
                      selected = found_bam_files()[1], multiple =T)  
     }
@@ -198,8 +202,8 @@ shinyServer(function(input, output, session) {
   })
   coverage_plot_calcs <- reactive({
     
-    igv_plot (poly_a_counts(), input$xslider,input$select_genes,input$legend,group = F, 
-              input$order_alt, alt_cumu_dis =F,show_poly_a =F, poly_a_pileup=T,gffInput ())
+    igv_plot (poly_a_counts(), input$xslider,input$select_genes,input$legend,group = input$merge, 
+              input$order_alt, alt_cumu_dis =F,show_poly_a =input$spa, poly_a_pileup=T,gffInput ())
   })
   
   output$igv_plot<- renderPlot({  
