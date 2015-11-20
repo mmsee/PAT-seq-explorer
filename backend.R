@@ -359,12 +359,13 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
   new_frame$count <- as.numeric(unlist(count))
   
   if (gffin[1, "Orientation"] =="-"){
+    new_frame$pos <- new_frame$pos+new_frame$width
     new_frame$bam_read_ends <- new_frame$pos-new_frame$width
     new_frame$poly_a_extension <- new_frame$bam_read_ends -new_frame$number_of_as
   }
   else{
-    new_frame$bam_read_ends <- rowSums(new_frame[, c("pos", "width")])
-    new_frame$poly_a_extension <- new_frame$bam_read_ends + new_frame$number_of_as
+    new_frame$bam_read_ends <- new_frame[,"pos"] - new_frame[,"width"]
+    new_frame$poly_a_extension <- new_frame$pos + new_frame$number_of_as
     
   }
   rt <- ggplot(data = new_frame, aes(x= pos, y = count, colour =Guide))+
@@ -382,8 +383,16 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
           axis.text.y = element_text(colour="black"))+
   scale_colour_manual(values = c("Alligned reads"="green", "Poly (A) tail"="blue" ))
   if (show_poly_a==T){
-    rt = rt+ geom_segment(aes(x= bam_read_ends+1,xend=poly_a_extension,  y= count ,
-                              yend= count, colour = "Poly (A) tail"))    
+    if(gffin[1, "Orientation"] =="+"){
+      rt = rt+ geom_segment(aes(x= pos, xend=poly_a_extension,  y= count ,
+                                yend= count, colour = "Poly (A) tail"))   
+      
+    }
+    else{
+      rt = rt+ geom_segment(aes(x=bam_read_ends, xend=poly_a_extension,  y= count ,
+                                yend= count, colour = "Poly (A) tail"))        
+    }
+     
   }
 
   
