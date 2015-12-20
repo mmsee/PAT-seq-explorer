@@ -9,18 +9,31 @@ shinyUI(navbarPage("PAT-seq explorer",
 
                                 conditionalPanel(
                                   condition = "input.merge == false",
-                                  uiOutput("bam_files")                                   
+                                  uiOutput("bam_files"),
+                                  actionButton("recalc", "Re-calculate")
                                 ),
                                 conditionalPanel(
                                   condition = "input.merge == true",
                                   uiOutput("select_group")                                
                                 ),
-                                checkboxInput("merge", label = "Combine samples", value = F),
-                                uiOutput("gene_list")
-                                
+                                radioButtons("gene_or_peak", "Find gene or peak", choices=list("Gene"=1, "Peak"=2), selected=1, inline=T),
+                                conditionalPanel(
+                                    condition= "input.gene_or_peak == 1",
+                                    checkboxInput("merge", label = "Combine samples", value = F),
+                                    uiOutput("gene_list")
+                                ),
+                                conditionalPanel(
+                                    condition= "input.gene_or_peak == 2",
+                                    checkboxInput("merge", label = "Combine samples", value = F),
+                                    textInput("select_peak", "Please enter a peak number (as PeakNUM)")
+                                    )
                                 
                               ),
                               mainPanel(
+#                                     tags$style(type="text/css",
+#                                                ".shiny-output-error { visibility: hidden; }",
+#                                                ".shiny-output-error:before { visibility: hidden; }"
+#                                     ),
                                 plotOutput("igv_plot"),
                                 checkboxInput("spa", label = "Show the Poly (A) tail", value = T),
                                 checkboxInput("all_reads", label = "Include reads that do not have a 

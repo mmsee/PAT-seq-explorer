@@ -4,7 +4,7 @@ source("backend.R")
 library("reshape2")
 library("ggplot2")
 library("genomeIntervals")
-library('BSgenome.Hsapiens.UCSC.hg19')
+# library('BSgenome.Hsapiens.UCSC.hg19')
 setwd("/data/home/apattison/ShinyApps/andrew/")
 
 shinyServer(function(input, output, session) {
@@ -74,6 +74,15 @@ shinyServer(function(input, output, session) {
     
   })
   
+  select_gene_peak <- reactive({
+    if(input$gene_or_peak == 1){
+      input$select_genes
+    } else {
+      input$select_peak
+    }
+  })
+      
+  
   found_bam_files <- reactive({
     find_bam_files(paste0(input$file_path, "/"))
   })
@@ -117,7 +126,7 @@ shinyServer(function(input, output, session) {
     #     if (length(processed_gff())== 0){
     #       return(NULL)
     #     }
-    filter_gff_for_rows(processed_gff(), input$select_genes)
+    filter_gff_for_rows(processed_gff(), select_gene_peak())
   })
   output$gff_rows<- renderDataTable({
     gffInput () 
@@ -193,21 +202,25 @@ shinyServer(function(input, output, session) {
     gene_expression_plot_calcs()
   }) 
   plot_calcs <- reactive({
-    poly_a_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend, 
+    poly_a_plot(poly_a_counts(), input$xslider,select_gene_peak(), input$legend, 
                 input$merge) 
   })
   pilup_plot_calcs <- reactive({
-    pileup_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend,
+    pileup_plot(poly_a_counts(), input$xslider,select_gene_peak(), input$legend,
                 group = F, input$order_alt, alt_cumu_dis = F,show_poly_a =F, input$poly_a_pileup )
   })
   coverage_plot_calcs <- reactive({
     
-    igv_plot (poly_a_counts(), input$xslider,input$select_genes,input$legend,group = input$merge, 
+    igv_plot (poly_a_counts(), input$xslider,select_gene_peak(),input$legend,group = input$merge, 
               input$order_alt, alt_cumu_dis =F,show_poly_a =input$spa, poly_a_pileup=T,gffInput ())
   })
   
-  output$igv_plot<- renderPlot({  
-    coverage_plot_calcs()
+  output$igv_plot<- renderPlot({ 
+    if(input$recalc == 0){
+        return()
+        #coverage_plot_calcs()
+    }
+    isolate(coverage_plot_calcs())
   })
   
   
@@ -221,7 +234,7 @@ shinyServer(function(input, output, session) {
   })
   #Workaround for a shiny bug thatdoesn't handle reactive plots well. 
   plot_calcs2 <- function(){
-    poly_a_plot(poly_a_counts(), input$xslider,input$select_genes, input$legend, 
+    poly_a_plot(poly_a_counts(), input$xslider,select_gene_peak(), input$legend, 
                 input$merge)    
   }
   selected_plot_points <- reactive({
@@ -255,7 +268,7 @@ shinyServer(function(input, output, session) {
   
   output$downloadPlot <- downloadHandler(
     filename = function(){
-      paste(trim(input$select_genes), '.eps', sep='')
+      paste(trim(select_gene_peak()), '.eps', sep='')
     },
     content = function(file){
       setEPS(width = 10)
