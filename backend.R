@@ -395,7 +395,7 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
       rt = rt+ geom_segment(aes(x=bam_read_ends, xend=poly_a_extension,  y= count ,
                                 yend= count, colour = "Poly (A) tail"))        
     }
-      rm <- regmatches(gffin[,9], regexpr("Name=[^;\\s]+",gff[,9],perl=T)
+      rm <- regmatches(gffin[,9], regexpr("Name=[^;\\s]+",gffin[,9],perl=T))
                        names_list <- gsub(x=rm,pattern="(id=)",
                                           replacement="",perl=T)
       rt <- rt + geom_segment(data=gffin, aes_string(x="Peak_Start", xend="Peak_End", y=-1, yend=-1), colour="RED")
