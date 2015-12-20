@@ -316,9 +316,12 @@ get_genomic_seq <- function(chr, start, end){
 
 igv_plot <- function (processed_frame, ranges,names, leg,group = F, 
                                      order_alt = T, alt_cumu_dis,show_poly_a =F, poly_a_pileup=T, gffin){
-
+  
   start <- gffin[1, "Peak_Start"]
-  end <- gffin[1,"Peak_End"]+400
+  end <- gffin[1,"Peak_End"]+300
+
+#   start <- gffin[1, "Peak_Start"]
+#   end <- gffin[1,"Peak_End"]+400
 
   chr <- gffin[1, "Chromosome"]
 #   in_chr <- as.numeric(as.roman (substring(chr, 4)))
@@ -368,7 +371,7 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
     new_frame$poly_a_extension <- new_frame$pos + new_frame$number_of_as
     
   }
-  rt <- ggplot(data = new_frame, aes(x= pos, y = count, colour =Guide))+
+  rt <- ggplot(data = new_frame, aes(x= pos, y = count))+
    # scale_x_discrete(labels= sequence[[1]])+
    facet_wrap(as.formula(paste("~", group_status)),ncol = 2)+
     geom_segment(aes(x= pos,xend=bam_read_ends,  y= count ,
@@ -392,6 +395,11 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
       rt = rt+ geom_segment(aes(x=bam_read_ends, xend=poly_a_extension,  y= count ,
                                 yend= count, colour = "Poly (A) tail"))        
     }
+      rm <- regmatches(gffin[,9], regexpr("Name=[^;\\s]+",gff[,9],perl=T)
+                       names_list <- gsub(x=rm,pattern="(id=)",
+                                          replacement="",perl=T)
+      rt <- rt + geom_segment(data=gffin, aes_string(x="Peak_Start", xend="Peak_End", y=-1, yend=-1), colour="RED")
+#       rt <- rt + geom_text(data=gffin, aes)
      
   }
 
