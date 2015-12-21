@@ -4,10 +4,12 @@ source("backend.R")
 library("reshape2")
 library("ggplot2")
 library("genomeIntervals")
+library("shinyURL")
 # library('BSgenome.Hsapiens.UCSC.hg19')
 setwd("/data/home/apattison/ShinyApps/andrew/")
 
 shinyServer(function(input, output, session) {
+  shinyURL.server(session)
   output$select_file_path <- renderUI({
     selectizeInput("file_path", label = ("Select a dataset"), 
                 choices = list.dirs(full.names=F, recursive =F), 

@@ -1,5 +1,5 @@
 #library(markdown)
-
+library("shinyURL")
 shinyUI(navbarPage("PAT-seq explorer",
                    tabPanel("Genome Coverage",
                             sidebarLayout(
@@ -9,9 +9,10 @@ shinyUI(navbarPage("PAT-seq explorer",
 
                                 conditionalPanel(
                                   condition = "input.merge == false",
-                                  uiOutput("bam_files"),
-                                  actionButton("recalc", "Re-calculate")
+                                  uiOutput("bam_files")
+                                  
                                 ),
+                                actionButton("recalc", "Re-calculate"),
                                 conditionalPanel(
                                   condition = "input.merge == true",
                                   uiOutput("select_group")                                
@@ -26,7 +27,8 @@ shinyUI(navbarPage("PAT-seq explorer",
                                     condition= "input.gene_or_peak == 2",
                                     checkboxInput("merge", label = "Combine samples", value = F),
                                     textInput("select_peak", "Please enter a peak number (as PeakNUM)")
-                                    )
+                                    ),
+                                shinyURL.ui()
                                 
                               ),
                               mainPanel(
