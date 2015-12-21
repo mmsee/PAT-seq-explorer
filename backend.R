@@ -400,7 +400,11 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
                        replacement="",perl=T)
     rt <- rt + geom_segment(data=gffin, aes_string(x="Peak_Start", xend="Peak_End", y=-1, yend=-1), colour="RED")
     loc <- (gffin$Peak_Start + gffin$Peak_End)/2
-    rt <- rt + annotate("text", x = loc, y = -25, label = names_list)
+        if(length(names_list) > 1){
+      ycount <- -1*max(count)/12
+      rt <- rt + annotate("text", x = loc, y = ycount, label = names_list)
+    }
+    
   }
   
   
