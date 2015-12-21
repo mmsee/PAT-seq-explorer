@@ -47,7 +47,7 @@ filter_gff_for_rows<- function (gff,names){
     output$input_gene_or_peak <- name
     empty <- rbind(empty, output)
   }
-
+  
   return(empty)
 }
 
@@ -61,9 +61,9 @@ get_a_counts <- function(bam_file_path,gff_rows, bam_files, groups, names_from_j
       next
     }
     counts_frame$gene_or_peak_name <- gff_rows[gff_row, 'input_gene_or_peak']
-
+    
     reads_report <-rbind(reads_report,counts_frame)   
-
+    
   }
   
   return(reads_report)
@@ -129,7 +129,7 @@ get_a_counts_gff_row <- function(bam_file_path,peak, bam_files, groups,names_fro
       single_bam_frame$sample <- paste(bam_file)
     }
     single_bam_frame$group<- paste("group", groups[count])
- 
+    
     bam_frame <- rbind(bam_frame,single_bam_frame)
     count <- count +1
     
@@ -177,7 +177,7 @@ modify_gff_inplace <- function (gff_file, name) {
                       comment.char="",stringsAsFactors=F)
     return(gff)
   }
-
+  
   
   start_gff_file <- read.delim(gff_file, header=FALSE,
                                comment.char="",stringsAsFactors=F)
@@ -315,22 +315,22 @@ get_genomic_seq <- function(chr, start, end){
 }
 
 igv_plot <- function (processed_frame, ranges,names, leg,group = F, 
-                                     order_alt = T, alt_cumu_dis,show_poly_a =F, poly_a_pileup=T, gffin){
+                      order_alt = T, alt_cumu_dis,show_poly_a =F, poly_a_pileup=T, gffin){
   
   start <- gffin[1, "Peak_Start"]
   end <- gffin[1,"Peak_End"]+300
-
-#   start <- gffin[1, "Peak_Start"]
-#   end <- gffin[1,"Peak_End"]+400
-
+  
+  #   start <- gffin[1, "Peak_Start"]
+  #   end <- gffin[1,"Peak_End"]+400
+  
   chr <- gffin[1, "Chromosome"]
-#   in_chr <- as.numeric(as.roman (substring(chr, 4)))
-#   str_chr <- paste0("chr",in_chr)
-#   sequence <- get_genomic_seq(str_chr, start, end)
-#   sequence <- strsplit(sequence , "")
+  #   in_chr <- as.numeric(as.roman (substring(chr, 4)))
+  #   str_chr <- paste0("chr",in_chr)
+  #   sequence <- get_genomic_seq(str_chr, start, end)
+  #   sequence <- strsplit(sequence , "")
   new_frame <- processed_frame
   
-
+  
   if (gffin[1, "Orientation"] =="-"){
     new_frame <- new_frame[
       with(new_frame,order(
@@ -353,7 +353,7 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
     group_status <- "sample"
     samples <- split(new_frame, new_frame$sample, drop =T)    
   }  
-
+  
   count <- list()
   for (sample in samples){
     count <- c(count, 1:nrow(sample))
@@ -372,11 +372,11 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
     
   }
   rt <- ggplot(data = new_frame, aes(x= pos, y = count))+
-   # scale_x_discrete(labels= sequence[[1]])+
-   facet_wrap(as.formula(paste("~", group_status)),ncol = 2)+
+    # scale_x_discrete(labels= sequence[[1]])+
+    facet_wrap(as.formula(paste("~", group_status)),ncol = 2)+
     geom_segment(aes(x= pos,xend=bam_read_ends,  y= count ,
                      yend= count, colour = "Alligned reads"))+
-
+    
     xlab(paste(names,"\n","chr", chr,"\n", start,"to", end))+
     theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(), 
           panel.background = element_blank(), axis.line = element_line(colour = "black"),
@@ -384,7 +384,7 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
     ylab("Number of reads")+
     theme(axis.text.x = element_text(colour="black"), 
           axis.text.y = element_text(colour="black"))+
-  scale_colour_manual(values = c("Alligned reads"="green", "Poly (A) tail"="blue" ))
+    scale_colour_manual(values = c("Alligned reads"="green", "Poly (A) tail"="blue" ))
   if (show_poly_a==T){
     if(gffin[1, "Orientation"] =="+"){
       rt = rt+ geom_segment(aes(x= pos, xend=poly_a_extension,  y= count ,
@@ -395,20 +395,20 @@ igv_plot <- function (processed_frame, ranges,names, leg,group = F,
       rt = rt+ geom_segment(aes(x=bam_read_ends, xend=poly_a_extension,  y= count ,
                                 yend= count, colour = "Poly (A) tail"))        
     }
-      rm <- regmatches(gffin[,9], regexpr("Name=[^;\\s]+",gffin[,9],perl=T))
-                       names_list <- gsub(x=rm,pattern="(id=)",
-                                          replacement="",perl=T)
-      rt <- rt + geom_segment(data=gffin, aes_string(x="Peak_Start", xend="Peak_End", y=-1, yend=-1), colour="RED")
-#       rt <- rt + geom_text(data=gffin, aes)
-     
+    rm <- regmatches(gffin[,9], regexpr("id=[^;\\s]+",gffin[,9],perl=T))
+    names_list <- gsub(x=rm,pattern="(id=)",
+                       replacement="",perl=T)
+    rt <- rt + geom_segment(data=gffin, aes_string(x="Peak_Start", xend="Peak_End", y=-1, yend=-1), colour="RED")
+    loc <- (gffin$Peak_Start + gffin$Peak_End)/2
+    rt <- rt + annotate("text", x = loc, y = -25, label = names_list)
   }
-
   
-    return(rt)
-
+  
+  return(rt)
+  
 }
-  
-  
+
+
 
 pileup_plot <- function (processed_frame, ranges,names, leg,group = F, 
                          order_alt = T, alt_cumu_dis,show_poly_a =F, poly_a_pileup=T ){
@@ -517,7 +517,7 @@ gene_expression_plot <- function(processed_bame_frame){
   }
   df <- data.frame("Sample"= character(), "Count"= numeric())
   for (i in 1:length(samples)){
-
+    
     row <- data.frame(names(samples[i]),nrow(samples[i][[1]]))
     df <- rbind(df,row)
     
