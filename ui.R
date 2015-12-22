@@ -1,55 +1,60 @@
 #library(markdown)
-
+library("shinyURL")
 shinyUI(navbarPage("PAT-seq explorer",
                    tabPanel("Genome Coverage",
                             sidebarLayout(
                               sidebarPanel(
                                 
                                 uiOutput("select_file_path"), 
-
+                                
                                 conditionalPanel(
                                   condition = "input.merge == false",
-                                  uiOutput("bam_files"),
-                                  actionButton("recalc", "Re-calculate")
+                                  uiOutput("bam_files")
+                                  
                                 ),
+                                actionButton("recalc", "Re-calculate"),
                                 conditionalPanel(
                                   condition = "input.merge == true",
                                   uiOutput("select_group")                                
                                 ),
                                 radioButtons("gene_or_peak", "Find gene or peak", choices=list("Gene"=1, "Peak"=2), selected=1, inline=T),
                                 conditionalPanel(
-                                    condition= "input.gene_or_peak == 1",
-                                    checkboxInput("merge", label = "Combine samples", value = F),
-                                    uiOutput("gene_list")
+                                  condition= "input.gene_or_peak == 1",
+                                  checkboxInput("merge", label = "Combine samples", value = F),
+                                  uiOutput("gene_list")
                                 ),
                                 conditionalPanel(
-                                    condition= "input.gene_or_peak == 2",
-                                    checkboxInput("merge", label = "Combine samples", value = F),
-                                    textInput("select_peak", "Please enter a peak number (as PeakNUM)")
-                                    )
+                                  condition= "input.gene_or_peak == 2",
+                                  checkboxInput("merge", label = "Combine samples", value = F),
+                                  textInput("select_peak", "Please enter a peak number (as PeakNUM)")
+                                ),
+                                shinyURL.ui()
                                 
                               ),
                               mainPanel(
-#                                     tags$style(type="text/css",
-#                                                ".shiny-output-error { visibility: hidden; }",
-#                                                ".shiny-output-error:before { visibility: hidden; }"
-#                                     ),
+                                #                                     tags$style(type="text/css",
+                                #                                                ".shiny-output-error { visibility: hidden; }",
+                                #                                                ".shiny-output-error:before { visibility: hidden; }"
+                                #                                     ),
                                 plotOutput("igv_plot"),
                                 checkboxInput("spa", label = "Show the Poly (A) tail", value = T),
                                 checkboxInput("all_reads", label = "Include reads that do not have a 
-                  poly (A)-tail", value = F),
+                                              poly (A)-tail", value = F),
                                 sliderInput("al_length", label= 'Aligned reads length range', min=0, max=400,
                                             value =c(0,400)),
                                 sliderInput("ad_slider", label= "Number of sequenced adpater bases", min=0, max=23,
                                             value =0, step = 1,ticks = TRUE, 
-                                            sep = ",")
- 
-                              )
-                            )
-                   ),
+                                            sep = ","),
+                                downloadButton('dlplot1pdf', '.pdf'),
+                                downloadButton('dlplot1eps', '.eps')
+                                )
+                   )
+                            ),
                    tabPanel("Gene Expression",                            
-                              mainPanel(
-                                plotOutput("gene_expression_plot")                                
+                            mainPanel(
+                              plotOutput("gene_expression_plot"),
+                              downloadButton('dlplot2pdf', '.pdf'),
+                              downloadButton('dlplot2eps', '.eps')
                             )
                    ),
                    tabPanel("Poly (A)-tail cumulative distribution",
@@ -84,7 +89,7 @@ shinyUI(navbarPage("PAT-seq explorer",
                               ),
                               mainPanel(
                                 plotOutput("pilup_plot")
-
+                                
                               )
                             )
                    )

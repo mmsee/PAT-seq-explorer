@@ -4,14 +4,16 @@ source("backend.R")
 library("reshape2")
 library("ggplot2")
 library("genomeIntervals")
+library("shinyURL")
 # library('BSgenome.Hsapiens.UCSC.hg19')
 setwd("/data/home/apattison/ShinyApps/andrew/")
 
 shinyServer(function(input, output, session) {
+  shinyURL.server(session)
   output$select_file_path <- renderUI({
     selectizeInput("file_path", label = ("Select a dataset"), 
-                choices = list.dirs(full.names=F, recursive =F), 
-                selected =  list.dirs(full.names=F, recursive =F)[1])   
+                   choices = list.dirs(full.names=F, recursive =F), 
+                   selected =  list.dirs(full.names=F, recursive =F)[1])   
   })
   
   
@@ -81,7 +83,7 @@ shinyServer(function(input, output, session) {
       input$select_peak
     }
   })
-      
+  
   
   found_bam_files <- reactive({
     find_bam_files(paste0(input$file_path, "/"))
@@ -217,8 +219,8 @@ shinyServer(function(input, output, session) {
   
   output$igv_plot<- renderPlot({ 
     if(input$recalc == 0){
-        return()
-        #coverage_plot_calcs()
+      return()
+      #coverage_plot_calcs()
     }
     isolate(coverage_plot_calcs())
   })
@@ -276,4 +278,36 @@ shinyServer(function(input, output, session) {
       plot_calcs2()     
       dev.off()       
     })  
+  output$dlplot1pdf <- downloadHandler(
+    filename = function() { paste0('.pdf', sep='') },
+    content = function(file) {
+      ggsave(file,coverage_plot_calcs())
+    })
+  
+  output$dlplot1eps <- downloadHandler(
+    filename = function(){
+      paste(trim(select_gene_peak()), '.eps', sep='')
+    },
+    content = function(file){
+      setEPS(width = 10)
+      postscript(file)
+      coverage_plot_calcs()     
+      dev.off() 
+    })
+  output$dlplot2pdf <- downloadHandler(
+    filename = function() { paste0('.pdf', sep='') },
+    content = function(file) {
+      ggsave(file,gene_expression_plot(poly_a_counts()))
+    })
+  
+  output$dlplot2eps <- downloadHandler(
+    filename = function(){
+      paste(trim(select_gene_peak()), '.eps', sep='')
+    },
+    content = function(file){
+      setEPS(width = 10)
+      postscript(file)
+      gene_expression_plot(poly_a_counts())    
+      dev.off() 
+    })
 })
